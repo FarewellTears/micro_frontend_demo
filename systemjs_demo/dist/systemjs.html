@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <h3>主应用，也叫基座，用来加载子应用的 webpack importMap</h3>
+    <div id="root"></div>
+    <!-- 可以在浏览器使用 ES6 的 import/export 语法, 通过 systemjs-importmap 指定依赖库的地址 -->
+    <script type="systemjs-importmap">
+      {
+        "imports": {
+          "react-dom": "https://cdn.bootcdn.net/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js",
+          "react": "https://cdn.bootcdn.net/ajax/libs/react/18.2.0/umd/react.development.js"
+        }
+      }
+    </script>
+    <!-- <script src="https://cdn.bootcdn.net/ajax/libs/systemjs/6.10.1/system.min.js"></script> -->
+    <script>
+      // 直接加载子应用, 导入打包后的包来进行加载, 采用是 system 规范
+
+      // 自实现 SystemJS
+      // 1) SystemJs 是如何定义的，先观察打包后的结果 System.register(依赖列表, 回调函数返回值为 setters 和 execute)
+      // 2) react 和 react-dom 加载后调用 setters，将对应的结果赋值给 webpack importMap 中的变量
+      // 3) 调用执行逻辑 执行页面渲染
+
+      // 模块规范 用来加载 system 模块
+      const newMapUrl = {};
+      // 解析 importMap
+      function processScripts() {
+        Array.from(document.querySelectorAll("script")).forEach((script) => {
+          if (script.type === "systemjs-importmap") {
+            Object.assign(newMapUrl, JSON.parse(script.innerHTML).imports);
+          }
+        });
+      }
+
+      function loadScript(url) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = url;
+          script.async = true;
+          document.head.appendChild(script);
+          script.addEventListener("load", () => {
+            // 加载完成后执行
+            resolve();
+          });
+        });
+      }
+
+      class SystemJs {
+        import(url) {
+          // url 原则上可以是一个第三方路径 cdn
+          return Promise.resolve(processScripts())
+            .then(() => {
+              // 1) 去当前路径查找对应需要加载的资源 index.js
+              const lastSepIndex = location.href.lastIndexOf("/");
+              const baseUrl = location.href.slice(0, lastSepIndex + 1);
+              if (url.startsWith("./")) {
+                return baseUrl + url.slice(2);
+              }
+            })
+            .then((url) => {
+              // 根据拼接后的 url 加载打包后的资源 index.js
+              return loadScript(url).then(() => {
+                console.log("文件加载完成");
+              });
+            });
+        }
+
+        register(deps, declare) {
+          console.log(deps, declare);
+        }
+      }
+
+      const System = new SystemJs();
+      System.import("./index.js").then(() => {
+        console.log("模块加载完成");
+      });
+    </script>
+  </body>
+</html>

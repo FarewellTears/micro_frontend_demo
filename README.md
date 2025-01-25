@@ -12,7 +12,7 @@ cd systemjs_demo
 pnpm init
 pnpm i webpack webpack-cli webpack-dev-server -D
 pnpm i html-webpack-plugin -D
-pnpm i react react-dom
-pnpm i -D babel-loader @babel/core @babel/preset-env
+pnpm i react@18.2.0 react-dom@18.2.0    # 与 html 中引入的 cdn 版本保持一致
+pnpm i -D babel-loader @babel/core @babel/preset-env @babel/preset-react
 ```
 

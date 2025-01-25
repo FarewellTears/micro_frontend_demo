@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" />
-    <title>Document</title>
+    <title>SystemJs Demo</title>
   </head>
 
   <body>
@@ -21,14 +21,11 @@
     </script>
     <!-- <script src="https://cdn.bootcdn.net/ajax/libs/systemjs/6.10.1/system.min.js"></script> -->
     <script>
-      // 直接加载子应用, 导入打包后的包来进行加载, 采用是 system 规范
-
-      // 自实现 SystemJS
-      // 1) SystemJs 是如何定义的，先观察打包后的结果 System.register(依赖列表, 回调函数返回值为 setters 和 execute)
-      // 2) react 和 react-dom 加载后调用 setters，将对应的结果赋值给 webpack importMap 中的变量
+      // 自实现 SystemJS，采用 system 规范对模块资源进行加载
+      // 1) System.register(依赖列表, 回调函数返回值为 setters 和 execute)
+      // 2) react 和 react-dom 加载后调用 setters，将对应的结果赋值给 webpack importMap
       // 3) 调用执行逻辑 执行页面渲染
 
-      // 模块规范 用来加载 system 模块
       const newMapUrl = {};
       // 解析 importMap
       function processScripts() {
@@ -38,7 +35,7 @@
           }
         });
       }
-
+      // 加载脚本
       function loadScript(url) {
         return new Promise((resolve, reject) => {
           const script = document.createElement("script");
@@ -46,40 +43,85 @@
           script.async = true;
           document.head.appendChild(script);
           script.addEventListener("load", () => {
+            let _lastRegister = lastRegister;
+            lastRegister = undefined;
+
             // 加载完成后执行
-            resolve();
+            resolve(_lastRegister);
           });
         });
       }
 
+      let propsSet = new Set(); // 1) 用来记录 window 中已经存在的属性
+      function setGlobalProperty() {
+        for (let key in window) {
+          propsSet.add(key);
+        }
+      }
+      function getLastGlobalProperty() {
+        // 2) 用来获取 window 中新增的属性
+        for (let key in window) {
+          if (!propsSet.has(key)) {
+            propsSet.add(key);
+            return window[key];
+          }
+        }
+      }
+
+      let lastRegister;
       class SystemJs {
         import(url) {
-          // url 原则上可以是一个第三方路径 cdn
+          // url 原则上可以是一个第三方路径的 cdn 地址
           return Promise.resolve(processScripts())
             .then(() => {
-              // 1) 去当前路径查找对应需要加载的资源 index.js
+              // 1) 去当前路径 url 下查找对应需要加载的打包后的资源
               const lastSepIndex = location.href.lastIndexOf("/");
               const baseUrl = location.href.slice(0, lastSepIndex + 1);
+              // 2) 将相对路径拼接转换为绝对路径
               if (url.startsWith("./")) {
                 return baseUrl + url.slice(2);
               }
             })
-            .then((url) => {
-              // 根据拼接后的 url 加载打包后的资源 index.js
-              return loadScript(url).then(() => {
-                console.log("文件加载完成");
-              });
+            .then((absoluteUrl) => {
+              let execute;
+              // 3）根据拼接后的绝对地址 url ，加载打包后的资源 index.js
+              return loadScript(absoluteUrl)
+                .then((register) => {
+                  let { setters, execute: exe } = register[1](() => {});
+                  execute = exe;
+                  // execute 是真正执行的渲染逻辑
+                  // setters 是用来保存加载后的资源，加载资源时调用 setters
+                  // console.log(setters, exe);
+                  return [register[0], setters]; // register[0] 为 ['react-dom', 'react']
+                })
+                .then(([registeration, setters]) => {
+                  setGlobalProperty();
+                  return Promise.all(
+                    registeration.map((dep, index) => {
+                      return loadScript(newMapUrl[dep]).then(() => {
+                        const property = getLastGlobalProperty();
+                        // 记载完毕后在 windows 上增添对应属性 window.XXX
+                        setters[index](property);
+                      });
+                    })
+                  );
+                })
+                .then(() => {
+                  return execute();
+                });
             });
         }
 
         register(deps, declare) {
-          console.log(deps, declare);
+          // 将回调结果保存
+          lastRegister = [deps, declare];
         }
       }
 
       const System = new SystemJs();
+
       System.import("./index.js").then(() => {
-        console.log("模块加载完成");
+        console.log("加载完成");
       });
     </script>
   </body>

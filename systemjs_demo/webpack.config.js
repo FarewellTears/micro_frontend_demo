@@ -43,8 +43,8 @@ module.exports = (env) => ({
         template: path.resolve(__dirname, "public/index.html"),
       }),
   ].filter(Boolean),
-  // 5. 生产环境下不打包 react, react-dom。（这里也可以打包到当前项目下均可， 综合考虑公共模块是否要打包进去、打包后的资源大小）
-  // [] 选择不在打包过程中加载的模块而通过脚本方式引入
+  // 5. 生产环境下不打包 react, react-dom。（这里也可以打包到当前项目下， 综合考虑公共模块是否要打包进去、打包后的资源大小）
+  // [] 内出现的是不在打包过程中加载的模块，而通过脚本方式引入（cdn 资源等）
   externals: env.production ? ["react", "react-dom"] : [],
 });
 

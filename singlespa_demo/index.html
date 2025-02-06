@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>single-spa use</title>
+  </head>
+  <body>
+    <!-- <script src="https://cdn.bootcdn.net/ajax/libs/single-spa/5.9.3/umd/single-spa.min.js"></script> -->
+    <!-- <script> -->
+    <script type="module">
+      // 基于路由拦截的微前端应用
+      // 改写子项目接入协议: bootstrap mount unmount
+
+      // const { registerApplication, start } = singleSpa;
+      import { registerApplication, start } from "./single-spa/single-spa.js";
+
+      // /a   /b
+      let app1 = {
+        bootstrap: [
+          async () => console.log("app1 bootstrap1"),
+          async () => console.log("app1 bootstrap2"),
+        ],
+        mount: async () => console.log("app1 mount1"),
+        unmount: async () => console.log("app1 unmount1"),
+      };
+
+      let app2 = {
+        bootstrap: [async () => console.log("app2 bootstrap1")],
+        mount: async () => console.log("app2 mount1"),
+        unmount: async () => console.log("app2 unmount1"),
+      };
+      // 当路径是 #/a 时就加载 a 应用
+      registerApplication(
+        "a",
+        async () => app1,
+        (location) => location.hash.startsWith("#/a")
+      );
+      registerApplication(
+        "b",
+        async () => app2,
+        (location) => location.hash.startsWith("#/b")
+      );
+      // start();
+    </script>
+  </body>
+</html>
